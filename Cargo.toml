@@ -1,2 +1,0 @@
-[workspace]
-members = ["core", "export", "environment", "environments/*", "examples/*"]

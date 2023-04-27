@@ -1,11 +1,8 @@
-use rand::distributions::{Distribution, Standard};
-use rand::Rng;
+use crate::mutations::Distribution;
+use godot::prelude::utilities::randi_range;
+use nanoserde::{DeBin, SerBin};
 
-#[derive(Debug, Clone, PartialEq, Hash)]
-#[cfg_attr(
-    feature = "network-serde",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, DeBin, SerBin)]
 pub enum ActivationKind {
     Input,
     Tanh,
@@ -19,12 +16,12 @@ pub enum ActivationKind {
     BentIdentity,
     Bipolar,
     Inverse,
-    SELU,
+    Selu,
 }
 
-impl Distribution<ActivationKind> for Standard {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> ActivationKind {
-        match rng.gen_range(0, 12) {
+impl Distribution for ActivationKind {
+    fn sample() -> Self {
+        match randi_range(0, 11) {
             0 => ActivationKind::Tanh,
             1 => ActivationKind::Relu,
             2 => ActivationKind::Step,
@@ -35,12 +32,11 @@ impl Distribution<ActivationKind> for Standard {
             7 => ActivationKind::Gaussian,
             8 => ActivationKind::BentIdentity,
             9 => ActivationKind::Bipolar,
-            10 => ActivationKind::SELU,
+            10 => ActivationKind::Selu,
             _ => ActivationKind::Inverse,
         }
     }
 }
-
 pub fn activate(x: f64, kind: &ActivationKind) -> f64 {
     match kind {
         ActivationKind::Tanh => x.tanh(),
@@ -72,7 +68,7 @@ pub fn activate(x: f64, kind: &ActivationKind) -> f64 {
             }
         }
         ActivationKind::Inverse => 1. - x,
-        ActivationKind::SELU => {
+        ActivationKind::Selu => {
             let alpha = 1.6732632423543772;
             let scale = 1.05070098735548;
 

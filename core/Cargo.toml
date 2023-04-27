@@ -5,11 +5,17 @@ authors = ["Stjepan Golemac <stjepan@tray.io>"]
 edition = "2018"
 
 [dependencies]
-rand = "0.7.3"
-rand_distr = "0.3.0"
-rayon = "1.5.0"
-serde = { version = "1.0.118", features=["derive"], optional = true }
-uuid = { version = "0.8.1", features = ["v4"] }
+nanoserde = "0.1.32"
+godot = { git = "https://github.com/godot-rust/gdextension", branch = "master" }
 
-[features]
-network-serde = ["serde"]
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+lto = true
+panic = "unwind"
+debug = false
+
+[profile.dev]
+panic = "unwind"
+strip = true

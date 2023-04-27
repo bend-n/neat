@@ -1,25 +1,24 @@
-use rand::random;
-use std::hash::{Hash, Hasher};
+use godot::prelude::utilities::randf;
 
 #[derive(Debug, Clone)]
 pub struct ConnectionGene {
-    pub from: usize,
-    pub to: usize,
+    pub from: u32,
+    pub to: u32,
     pub weight: f64,
     pub disabled: bool,
 }
 
 impl ConnectionGene {
-    pub fn new(from: usize, to: usize) -> Self {
+    pub fn new(from: u32, to: u32) -> Self {
         ConnectionGene {
             from,
             to,
-            weight: random::<f64>() * 2. - 1.,
+            weight: randf() * 2.0 - 1.0,
             disabled: false,
         }
     }
 
-    pub fn innovation_number(&self) -> usize {
+    pub fn innovation_number(&self) -> u32 {
         let a = self.from;
         let b = self.to;
 
@@ -40,12 +39,3 @@ impl PartialEq for ConnectionGene {
 }
 
 impl Eq for ConnectionGene {}
-
-impl Hash for ConnectionGene {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.from.hash(state);
-        self.to.hash(state);
-        self.disabled.hash(state);
-        self.weight.to_bits().hash(state);
-    }
-}

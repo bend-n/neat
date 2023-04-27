@@ -1,13 +1,10 @@
 use crate::genome::connection::ConnectionGene;
+use nanoserde::{DeBin, SerBin};
 
-#[derive(Debug)]
-#[cfg_attr(
-    feature = "network-serde",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, DeBin, SerBin)]
 pub struct Connection {
-    pub from: usize,
-    pub to: usize,
+    pub from: u32,
+    pub to: u32,
     pub weight: f64,
 }
 

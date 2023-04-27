@@ -1,5 +1,6 @@
-use rand::distributions::{Distribution, Standard};
-use rand::Rng;
+use crate::mutations::Distribution;
+use godot::prelude::utilities::randi_range;
+use nanoserde::{DeBin, SerBin};
 
 pub fn aggregate(kind: &Aggregation, components: &[f64]) -> f64 {
     use Aggregation::*;
@@ -17,11 +18,7 @@ pub fn aggregate(kind: &Aggregation, components: &[f64]) -> f64 {
     func(components)
 }
 
-#[derive(Debug, Clone, PartialEq, Hash)]
-#[cfg_attr(
-    feature = "network-serde",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, DeBin, SerBin)]
 pub enum Aggregation {
     Product,
     Sum,
@@ -32,11 +29,11 @@ pub enum Aggregation {
     Mean,
 }
 
-impl Distribution<Aggregation> for Standard {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Aggregation {
+impl Distribution for Aggregation {
+    fn sample() -> Aggregation {
         use Aggregation::*;
 
-        match rng.gen_range(0, 7) {
+        match randi_range(0, 6) {
             0 => Product,
             1 => Sum,
             2 => Max,

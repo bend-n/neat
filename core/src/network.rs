@@ -1,28 +1,81 @@
+use godot::prelude::{
+    godot_api, godot_error, Base, Gd, GodotClass, PackedByteArray, PackedFloat64Array, RefCounted,
+    RefCountedVirtual,
+}; // musnt import node
+use nanoserde::{DeBin, SerBin};
+
 use crate::activation::*;
 use crate::aggregations::aggregate;
 use crate::connection::*;
 use crate::genome::Genome;
 use crate::node::*;
 
-#[derive(Debug)]
-#[cfg_attr(
-    feature = "network-serde",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, GodotClass, DeBin, SerBin)]
+#[class(base=RefCounted)]
 pub struct Network {
-    pub input_count: usize,
-    pub output_count: usize,
+    pub input_count: u32,
+    pub output_count: u32,
     pub nodes: Vec<Node>,
     pub connections: Vec<Connection>,
-    node_calculation_order: Vec<usize>,
+    node_calculation_order: Vec<u32>,
+}
+trait Pack {
+    fn pack(self) -> PackedByteArray
+    where
+        Self: Sized;
 }
 
+impl Pack for Vec<u8> {
+    fn pack(self) -> PackedByteArray {
+        let mut arr = PackedByteArray::new();
+        for i in self.into_iter() {
+            arr.push(i)
+        }
+        arr
+    }
+}
+
+#[godot_api]
+impl RefCountedVirtual for Network {
+    fn init(_base: Base<RefCounted>) -> Self {
+        Network {
+            input_count: 0,
+            output_count: 0,
+            nodes: vec![],
+            connections: vec![],
+            node_calculation_order: vec![],
+        }
+    }
+}
+
+#[godot_api]
 impl Network {
-    fn is_node_ready(&self, index: usize) -> bool {
-        let node = self.nodes.get(index).unwrap();
+    #[func]
+    fn to_bytes(&self) -> PackedByteArray {
+        self.serialize_bin().pack()
+    }
+
+    #[func]
+    // until https://github.com/godot-rust/gdext/pull/252 is merged i cant make a deserialize() function
+    fn from_bytes(&mut self, bytes: PackedByteArray) -> i32 {
+        match Self::deserialize_bin(&bytes.to_vec()) {
+            Ok(new) => {
+                *self = new;
+                1
+            }
+            Err(e) => {
+                godot_error!("deserializing failed: {e:#?}");
+                -1
+            }
+        }
+    }
+
+    #[func]
+    fn is_node_ready(&self, index: u32) -> bool {
+        let node = self.nodes.get(index as usize).unwrap();
 
         let requirements_fullfilled = self.connections.iter().filter(|c| c.to == index).all(|c| {
-            let from_index = c.from;
+            let from_index = c.from as usize;
             let from_node = &self.nodes[from_index];
 
             from_node.value.is_some()
@@ -32,19 +85,21 @@ impl Network {
         requirements_fullfilled && has_no_value
     }
 
-    pub fn forward_pass(&mut self, inputs: Vec<f64>) -> Vec<f64> {
+    #[func]
+    pub fn forward_pass(&mut self, inputs: PackedFloat64Array) -> PackedFloat64Array {
         for i in &self.node_calculation_order {
-            let node = self.nodes.get(*i).unwrap();
+            let node = self.nodes.get(*i as usize).unwrap();
 
             if matches!(node.kind, NodeKind::Input) {
-                self.nodes.get_mut(*i).unwrap().value = Some(*inputs.get(*i).unwrap());
+                self.nodes.get_mut(*i as usize).unwrap().value = Some(inputs.get(*i as usize));
             } else {
                 let components: Vec<f64> = self
                     .connections
                     .iter()
                     .filter(|c| c.to == *i)
                     .map(|c| {
-                        let incoming_value = self.nodes.get(c.from).unwrap().value.unwrap();
+                        let incoming_value =
+                            self.nodes.get(c.from as usize).unwrap().value.unwrap();
                         incoming_value * c.weight
                     })
                     .collect();
@@ -52,16 +107,18 @@ impl Network {
                 let aggregated = aggregate(&node.aggregation, &components);
                 let aggregated_with_bias = aggregated + node.bias;
 
-                self.nodes.get_mut(*i).unwrap().value =
+                self.nodes.get_mut(*i as usize).unwrap().value =
                     Some(activate(aggregated_with_bias, &node.activation));
             }
         }
 
+        let mut result = PackedFloat64Array::new();
         self.nodes
             .iter()
             .filter(|n| matches!(n.kind, NodeKind::Output))
             .map(|n| n.value.unwrap())
-            .collect()
+            .for_each(|f| result.push(f));
+        result
 
         // let mut inputs_updated = false;
         // let mut nodes_changed = -1;
@@ -139,13 +196,14 @@ impl Network {
         // outputs
     }
 
+    #[func]
     fn clear_values(&mut self) {
         self.nodes.iter_mut().for_each(|n| n.value = None);
     }
 }
 
-impl From<&Genome> for Network {
-    fn from(g: &Genome) -> Self {
+impl Network {
+    pub fn from_genome(g: &Genome) -> Gd<Self> {
         let nodes: Vec<Node> = g.nodes().iter().map(From::from).collect();
         let connections: Vec<Connection> = g
             .connections()
@@ -154,37 +212,12 @@ impl From<&Genome> for Network {
             .map(From::from)
             .collect();
 
-        Network {
+        Gd::new(Network {
             input_count: g.input_count(),
             output_count: g.output_count(),
             nodes,
             connections,
             node_calculation_order: g.node_order().unwrap(),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn init_network() {
-        let g = Genome::new(1, 1);
-        Network::from(&g);
-    }
-
-    #[test]
-    fn forward_pass() {
-        let g = Genome::new(2, 1);
-        let mut n = Network::from(&g);
-
-        let inputs: Vec<Vec<f64>> = vec![vec![0., 0.], vec![0., 1.], vec![1., 0.], vec![1., 1.]];
-
-        for i in inputs {
-            let o = n.forward_pass(i.clone());
-
-            dbg!(i, o);
-        }
+        })
     }
 }

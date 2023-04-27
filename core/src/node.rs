@@ -1,12 +1,9 @@
 use crate::activation::ActivationKind;
 use crate::aggregations::Aggregation;
 use crate::genome::node::NodeGene;
+use nanoserde::{DeBin, SerBin};
 
-#[derive(Debug, Clone, PartialEq, Hash)]
-#[cfg_attr(
-    feature = "network-serde",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, DeBin, SerBin)]
 pub enum NodeKind {
     Input,
     Hidden,
@@ -14,11 +11,7 @@ pub enum NodeKind {
     Constant,
 }
 
-#[derive(Debug)]
-#[cfg_attr(
-    feature = "network-serde",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, DeBin, SerBin)]
 pub struct Node {
     pub kind: NodeKind,
     pub aggregation: Aggregation,

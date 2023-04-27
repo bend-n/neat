@@ -1,8 +1,8 @@
 use crate::activation::ActivationKind;
 use crate::aggregations::Aggregation;
+use crate::mutations::Distribution;
 use crate::node::NodeKind;
-use rand::random;
-use std::hash::{Hash, Hasher};
+use godot::prelude::utilities::randf;
 
 #[derive(Debug, Clone)]
 pub struct NodeGene {
@@ -14,14 +14,14 @@ pub struct NodeGene {
 
 impl NodeGene {
     pub fn new(kind: NodeKind) -> Self {
-        let aggregation = random();
+        let aggregation = Aggregation::sample();
         let activation = match kind {
             NodeKind::Input => ActivationKind::Input,
-            _ => random(),
+            _ => ActivationKind::sample(),
         };
         let bias: f64 = match kind {
             NodeKind::Input => 0.,
-            _ => random::<f64>() * 2. - 1.,
+            _ => randf() * 2.9 - 1.0,
         };
 
         NodeGene {
@@ -43,12 +43,3 @@ impl PartialEq for NodeGene {
 }
 
 impl Eq for NodeGene {}
-
-impl Hash for NodeGene {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.kind.hash(state);
-        self.aggregation.hash(state);
-        self.activation.hash(state);
-        self.bias.to_bits().hash(state);
-    }
-}
