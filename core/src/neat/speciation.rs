@@ -3,13 +3,27 @@ use godot::prelude::*;
 use crate::genome::{Genome, GenomeId, GenomeMap};
 
 /// Holds all genomes and species, does the process of speciation
-#[derive(Debug, Default)]
+#[derive(Debug, Default, GodotClass)]
+#[class(base=RefCounted)]
 pub struct GenomeBank {
     genomes: GenomeMap,
     previous_genomes: GenomeMap,
 }
 
+#[godot_api]
+impl RefCountedVirtual for GenomeBank {
+    fn init(_base: Base<RefCounted>) -> Self {
+        Self::default()
+    }
+}
+
+#[godot_api]
 impl GenomeBank {
+    #[func]
+    pub fn get_genomes(&self) -> Dictionary {
+        self.genomes.d()
+    }
+
     /// Adds a new genome
     pub fn add_genome(&mut self, genome: Gd<Genome>) {
         let id = genome.bind().id();

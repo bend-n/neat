@@ -11,7 +11,7 @@ func test(conf: Dictionary, inputs: int, outputs: int, fitness: Callable, try: P
 	cfg.population_size = conf.population_size
 	cfg.max_generations = conf.max_generations
 	cfg.mutation_rate = conf.mutation_rate
-	cfg.fitness_goal = conf.fitness_goal
+	cfg.set_fitness_goal(conf.fitness_goal)
 	cfg.node_cost = conf.node_cost
 	cfg.connection_cost = conf.connection_cost
 	cfg.compatibility_threshold = conf.compatability_threshold

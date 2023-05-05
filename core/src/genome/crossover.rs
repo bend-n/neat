@@ -81,7 +81,7 @@ pub fn crossover(a: (&Genome, f64), b: (&Genome, f64)) -> Option<Genome> {
                 }
                 (Some(a), None) => a,
                 (None, Some(b)) => b,
-                _ => panic!("Node selection out of bounds"),
+                _ => unreachable!(),
             },
         )
         .cloned()

@@ -1,10 +1,8 @@
 use godot::prelude::utilities::{randf, randfn, randi, randi_range};
 
-use crate::activation::ActivationKind;
-use crate::aggregations::Aggregation;
 use crate::genome::Genome;
 use crate::node::NodeKind;
-use crate::NodeGene;
+use crate::{EnumConversion, NodeGene};
 
 pub fn mutate(kind: &MutationKind, g: &mut Genome) {
     use MutationKind::*;
@@ -33,24 +31,10 @@ pub enum MutationKind {
     ModifyAggregation,
 }
 
-pub trait Distribution {
-    fn sample() -> Self;
-}
-
-impl Distribution for MutationKind {
-    fn sample() -> MutationKind {
-        use MutationKind::*;
-
-        match randi_range(0, 7) {
-            0 => AddConnection,
-            1 => RemoveConnection,
-            2 => AddNode,
-            3 => RemoveNode,
-            4 => ModifyWeight,
-            5 => ModifyBias,
-            _ => ModifyActivation,
-        }
-    }
+#[inline]
+pub fn rand<T: EnumConversion>() -> T {
+    let (from, to) = T::pick_range();
+    T::from(randi_range(from, to) as u8)
 }
 
 pub trait Pick<T> {
@@ -302,11 +286,11 @@ fn change_bias(g: &mut Genome) {
 fn change_activation(g: &mut Genome) {
     let picked_node = get_node_gene(g);
 
-    picked_node.activation = ActivationKind::sample();
+    picked_node.activation = rand();
 }
 
 fn change_aggregation(g: &mut Genome) {
     let picked_node = get_node_gene(g);
 
-    picked_node.aggregation = Aggregation::sample();
+    picked_node.aggregation = rand();
 }

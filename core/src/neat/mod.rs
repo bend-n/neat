@@ -23,8 +23,10 @@ pub struct NEAT {
     fitness_fn: Callable,
     #[export(get, set)]
     reporter_fn: Callable,
-    pub genomes: GenomeBank,
-    pub species_set: SpeciesSet,
+    #[export(get, set)]
+    genomes: Gd<GenomeBank>,
+    #[export(get, set)]
+    species_set: Gd<SpeciesSet>,
     #[export(get, set)]
     configuration: Gd<Configuration>,
 }
@@ -44,8 +46,8 @@ impl Default for NEAT {
             outputs: 0,
             fitness_fn: Callable::default(),
             reporter_fn: Callable::default(),
-            genomes: GenomeBank::default(),
-            species_set: SpeciesSet::new(configuration.share()),
+            genomes: Gd::new_default(),
+            species_set: Gd::new(SpeciesSet::new(configuration.share())),
             configuration,
         }
     }
@@ -67,7 +69,7 @@ impl StartResult {}
 #[class(base=RefCounted)]
 pub struct BestResult {
     #[export(get, set)]
-    pub best_id: Gd<GenomeId>,
+    pub best_id: i64,
     #[export(get, set)]
     pub best_fitness: f64,
 }
@@ -87,22 +89,27 @@ impl NEAT {
         // Create initial genomes
         (0..population_size).for_each(|_| {
             self.genomes
+                .bind_mut()
                 .add_genome(Gd::new(Genome::new(self.inputs, self.outputs)))
         });
 
         self.test_fitness();
 
         for i in 1..=max_generations {
-            let current_genome_ids: Vec<GenomeId> = self.genomes.genomes().keys().collect();
+            let current_genome_ids: Vec<GenomeId> = self.genomes.bind().genomes().keys().collect();
             let previous_and_current_genomes = GenomeMap::from_vec(
                 self.genomes
+                    .bind()
                     .genomes()
                     .iter()
-                    .chain(self.genomes.previous_genomes().iter())
+                    .chain(self.genomes.bind().previous_genomes().iter())
                     .collect(),
             );
-            self.species_set
-                .speciate(i, &current_genome_ids, previous_and_current_genomes);
+            self.species_set.bind_mut().speciate(
+                i,
+                &current_genome_ids,
+                previous_and_current_genomes,
+            );
 
             let (elitism, population_size, mutation_rate, survival_ratio) = {
                 let config = self.configuration.bind();
@@ -114,9 +121,10 @@ impl NEAT {
                     config.survival_ratio,
                 )
             };
-            assert_ne!(self.species_set.species().len(), 0);
+            assert_ne!(self.species_set.bind().species().len(), 0);
             let offspring: Vec<Gd<Genome>> = self
                 .species_set
+                .bind()
                 .species()
                 .values()
                 .flat_map(|species| {
@@ -134,6 +142,7 @@ impl NEAT {
                             (
                                 *member_id,
                                 self.genomes
+                                    .bind()
                                     .get(*member_id)
                                     .unwrap()
                                     .bind()
@@ -166,7 +175,7 @@ impl NEAT {
                             .map(|elite_index| {
                                 let (elite_genome_id, _) =
                                     member_ids_and_fitnesses.get(elite_index).unwrap();
-                                self.genomes.get(*elite_genome_id).unwrap()
+                                self.genomes.bind().get(*elite_genome_id).unwrap()
                             })
                             .collect();
 
@@ -177,9 +186,9 @@ impl NEAT {
                             let (parent_b_id, parent_b_fitness) = member_ids_and_fitnesses.rande();
 
                             (
-                                self.genomes.get(*parent_a_id).unwrap(),
+                                self.genomes.bind().get(*parent_a_id).unwrap(),
                                 *parent_a_fitness,
-                                self.genomes.get(*parent_b_id).unwrap(),
+                                self.genomes.bind().get(*parent_b_id).unwrap(),
                                 *parent_b_fitness,
                             )
                         })
@@ -223,16 +232,15 @@ impl NEAT {
                 })
                 .collect();
 
-            self.genomes.clear();
+            self.genomes.bind_mut().clear();
             assert_ne!(offspring.len(), 0);
             offspring
                 .into_iter()
-                .for_each(|genome| self.genomes.add_genome(genome));
+                .for_each(|genome| self.genomes.bind_mut().add_genome(genome));
             self.test_fitness();
             self.reporter_fn.callv(varray![i]);
             let goal_reached = {
-                let goal = self.configuration.bind().fitness_goal;
-                if goal != -1.0 {
+                if let Some(goal) = self.configuration.bind().fitness_goal {
                     self.get_best().bind().best_fitness >= goal
                 } else {
                     false
@@ -249,7 +257,8 @@ impl NEAT {
             network: Network::from_genome(
                 &self
                     .genomes
-                    .get(*best.bind().best_id.bind())
+                    .bind()
+                    .get(best.bind().best_id.into())
                     .unwrap()
                     .bind(),
             ),
@@ -261,6 +270,7 @@ impl NEAT {
     fn test_fitness(&mut self) {
         let id_and_fitness: Vec<(GenomeId, f64)> = self
             .genomes
+            .bind()
             .genomes()
             .iter()
             .map(|(genome_id, genome)| {
@@ -277,15 +287,18 @@ impl NEAT {
         id_and_fitness
             .into_iter()
             .for_each(|(genome_id, genome_fitness)| {
-                self.genomes.mark_fitness(genome_id, genome_fitness);
+                self.genomes
+                    .bind_mut()
+                    .mark_fitness(genome_id, genome_fitness);
             });
     }
 
     #[func]
     pub fn get_best(&self) -> Gd<BestResult> {
-        assert!(!self.genomes.genomes().is_empty());
+        assert!(!self.genomes.bind().genomes().is_empty());
         let (best_id, best_fit) = self
             .genomes
+            .bind()
             .genomes()
             .iter()
             .map(|(gid, g)| (gid, g.bind().fitness.unwrap()))
@@ -301,7 +314,7 @@ impl NEAT {
             );
         // println!("{:#?}", self.genomes.genomes().len()); the problem is it goes to 0 at the end sometimes
         Gd::new(BestResult {
-            best_id: Gd::new(best_id),
+            best_id: best_id.into(),
             best_fitness: best_fit,
         })
     }

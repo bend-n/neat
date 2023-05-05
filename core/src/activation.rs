@@ -1,5 +1,4 @@
-use crate::mutations::Distribution;
-use godot::prelude::utilities::randi_range;
+use crate::EnumConversion;
 use nanoserde::{DeBin, SerBin};
 
 #[derive(Debug, Clone, PartialEq, DeBin, SerBin)]
@@ -18,10 +17,9 @@ pub enum ActivationKind {
     Inverse,
     Selu,
 }
-
-impl Distribution for ActivationKind {
-    fn sample() -> Self {
-        match randi_range(0, 11) {
+impl EnumConversion for ActivationKind {
+    fn from(i: u8) -> Self {
+        match i {
             0 => ActivationKind::Tanh,
             1 => ActivationKind::Relu,
             2 => ActivationKind::Step,
@@ -33,10 +31,35 @@ impl Distribution for ActivationKind {
             8 => ActivationKind::BentIdentity,
             9 => ActivationKind::Bipolar,
             10 => ActivationKind::Selu,
-            _ => ActivationKind::Inverse,
+            11 => ActivationKind::Inverse,
+            _ => ActivationKind::Input,
         }
     }
+    fn to(self) -> u8 {
+        match self {
+            ActivationKind::Tanh => 0,
+            ActivationKind::Relu => 1,
+            ActivationKind::Step => 2,
+            ActivationKind::Logistic => 3,
+            ActivationKind::Identity => 4,
+            ActivationKind::Softsign => 5,
+            ActivationKind::Sinusoid => 6,
+            ActivationKind::Gaussian => 7,
+            ActivationKind::BentIdentity => 8,
+            ActivationKind::Bipolar => 9,
+            ActivationKind::Selu => 10,
+            ActivationKind::Inverse => 11,
+            ActivationKind::Input => 12,
+        }
+    }
+    fn pick_range() -> (i64, i64) {
+        (0, 11)
+    }
+    fn len() -> u8 {
+        12
+    }
 }
+
 pub fn activate(x: f64, kind: &ActivationKind) -> f64 {
     match kind {
         ActivationKind::Tanh => x.tanh(),
@@ -76,6 +99,6 @@ pub fn activate(x: f64, kind: &ActivationKind) -> f64 {
 
             fx * scale
         }
-        _ => panic!("Unknown activation function"),
+        _ => unreachable!(),
     }
 }

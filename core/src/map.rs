@@ -59,6 +59,10 @@ where
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+    #[inline]
+    pub fn d(&self) -> Dictionary {
+        self.0.share()
+    }
 }
 
 impl<K, V> std::fmt::Debug for Map<K, V> {
@@ -84,5 +88,10 @@ where
             new.set(k.clone(), Gd::new(v.bind().clone())); // i dont trust Variant::Clone
         }
         new
+    }
+}
+impl<K, V> From<Dictionary> for Map<K, V> {
+    fn from(value: Dictionary) -> Self {
+        Self(value, PhantomData)
     }
 }

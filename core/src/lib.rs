@@ -13,6 +13,7 @@ pub use genome::*;
 pub use map::*;
 pub use neat::*;
 pub use network::*;
+pub use node::EnumConversion;
 
 use godot::prelude::*;
 struct Lib;

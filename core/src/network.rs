@@ -1,7 +1,4 @@
-use godot::prelude::{
-    godot_api, godot_error, Base, Gd, GodotClass, PackedByteArray, PackedFloat64Array, RefCounted,
-    RefCountedVirtual,
-}; // musnt import node
+use godot::prelude::*;
 use nanoserde::{DeBin, SerBin};
 
 use crate::activation::*;
@@ -13,9 +10,11 @@ use crate::node::*;
 #[derive(Debug, GodotClass, DeBin, SerBin)]
 #[class(base=RefCounted)]
 pub struct Network {
+    #[export(get, set)]
     pub input_count: u32,
+    #[export(get, set)]
     pub output_count: u32,
-    pub nodes: Vec<Node>,
+    pub nodes: Vec<NeuralNode>,
     pub connections: Vec<Connection>,
     node_calculation_order: Vec<u32>,
 }
@@ -50,14 +49,28 @@ impl RefCountedVirtual for Network {
 
 #[godot_api]
 impl Network {
+    /// look if it was a proper graph then this would be hard
     #[func]
-    fn to_bytes(&self) -> PackedByteArray {
+    fn get_nodes(&self) -> VariantArray {
+        let mut nodes: Array<Gd<NeuralNode>> = Array::new();
+        let mut connections: Array<Gd<Connection>> = Array::new();
+        for node in &self.nodes {
+            nodes.push(Gd::new(node.clone()))
+        }
+        for connection in &self.connections {
+            connections.push(Gd::new(connection.clone()))
+        }
+        varray![nodes, connections]
+    }
+
+    #[func]
+    pub fn to_bytes(&self) -> PackedByteArray {
         self.serialize_bin().pack()
     }
 
     #[func]
     // until https://github.com/godot-rust/gdext/pull/252 is merged i cant make a deserialize() function
-    fn from_bytes(&mut self, bytes: PackedByteArray) -> i32 {
+    pub fn from_bytes(&mut self, bytes: PackedByteArray) -> i32 {
         match Self::deserialize_bin(&bytes.to_vec()) {
             Ok(new) => {
                 *self = new;
@@ -71,7 +84,7 @@ impl Network {
     }
 
     #[func]
-    fn is_node_ready(&self, index: u32) -> bool {
+    pub fn is_node_ready(&self, index: u32) -> bool {
         let node = self.nodes.get(index as usize).unwrap();
 
         let requirements_fullfilled = self.connections.iter().filter(|c| c.to == index).all(|c| {
@@ -119,92 +132,17 @@ impl Network {
             .map(|n| n.value.unwrap())
             .for_each(|f| result.push(f));
         result
-
-        // let mut inputs_updated = false;
-        // let mut nodes_changed = -1;
-        // let mut nodes_changed_sum = 0;
-
-        // while nodes_changed != 0 {
-        //     nodes_changed = 0;
-
-        //     // First pass, update inputs
-        //     if !inputs_updated {
-        //         self.nodes
-        //             .iter_mut()
-        //             .enumerate()
-        //             .filter(|(_, n)| matches!(n.kind, NodeKind::Input))
-        //             .for_each(|(i, n)| {
-        //                 let input_value = *inputs.get(i).expect(
-        //                     "Inputs need to be of the same length as the number of input nodes",
-        //                 );
-
-        //                 n.value = Some(input_value);
-        //                 nodes_changed += 1;
-        //             });
-
-        //         inputs_updated = true;
-        //     }
-
-        //     // Other passes, update non input nodes
-        //     let mut node_updates: Vec<(usize, f64)> = vec![];
-        //     self.nodes
-        //         .iter()
-        //         .enumerate()
-        //         .filter(|(i, n)| {
-        //             let is_not_input = !matches!(n.kind, NodeKind::Input);
-        //             let is_ready = self.is_node_ready(*i);
-
-        //             is_not_input && is_ready
-        //         })
-        //         .for_each(|(i, n)| {
-        //             let incoming_connections: Vec<&Connection> =
-        //                 self.connections.iter().filter(|c| c.to == i).collect();
-
-        //             let mut value = 0.;
-
-        //             for c in incoming_connections {
-        //                 let from_node = self.nodes.get(c.from).unwrap();
-        //                 value += from_node.value.unwrap() * c.weight;
-        //             }
-
-        //             value += n.bias;
-
-        //             node_updates.push((i, value));
-        //         });
-
-        //     node_updates.iter().for_each(|(i, v)| {
-        //         let n = self.nodes.get_mut(*i).unwrap();
-
-        //         n.value = Some(activate(*v, &n.activation));
-
-        //         nodes_changed += 1;
-        //     });
-
-        //     nodes_changed_sum += nodes_changed;
-        // }
-
-        // let outputs = self
-        //     .nodes
-        //     .iter()
-        //     .filter(|n| matches!(n.kind, NodeKind::Output))
-        //     .map(|n| n.value.unwrap())
-        //     .collect();
-
-        // // Very important, I forgot this initially :facepalm:
-        // self.clear_values();
-
-        // outputs
     }
 
     #[func]
-    fn clear_values(&mut self) {
+    pub fn clear_values(&mut self) {
         self.nodes.iter_mut().for_each(|n| n.value = None);
     }
 }
 
 impl Network {
     pub fn from_genome(g: &Genome) -> Gd<Self> {
-        let nodes: Vec<Node> = g.nodes().iter().map(From::from).collect();
+        let nodes: Vec<NeuralNode> = g.nodes().iter().map(From::from).collect();
         let connections: Vec<Connection> = g
             .connections()
             .iter()

@@ -45,9 +45,8 @@ pub struct Configuration {
     /// The types of mutations available and their sampling weights
     pub mutation_kinds: Vec<(MutationKind, usize)>,
 
-    #[export(get, set)]
-    /// The process will stop if the fitness goal is reached (-1 for none)
-    pub fitness_goal: f64,
+    /// The process will stop if the fitness goal is reached
+    pub fitness_goal: Option<f64>,
 
     /*
      * Genomic distance during speciation
@@ -87,7 +86,7 @@ impl RefCountedVirtual for Configuration {
             mutation_rate: 0.5,
             survival_ratio: 0.5,
             mutation_kinds: default_mutation_kinds(),
-            fitness_goal: -1.0,
+            fitness_goal: None,
             distance_connection_disjoint_coefficient: 1.,
             distance_connection_weight_coeficcient: 0.5,
             distance_connection_disabled_coefficient: 0.5,
@@ -115,4 +114,13 @@ pub fn default_mutation_kinds() -> Vec<(MutationKind, usize)> {
 }
 
 #[godot_api]
-impl Configuration {}
+impl Configuration {
+    #[func]
+    fn set_fitness_goal(&mut self, to: Variant) {
+        if to.is_nil() {
+            self.fitness_goal = None
+        } else {
+            self.fitness_goal = Some(f64::from_variant(&to))
+        }
+    }
+}

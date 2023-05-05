@@ -21,7 +21,9 @@ pub mod node;
 #[class(base=RefCounted)]
 pub struct Genome {
     id: GenomeId,
+    #[export(get, set)]
     inputs: u32,
+    #[export(get, set)]
     outputs: u32,
     pub fitness: Option<f64>,
     connection_genes: Vec<ConnectionGene>,
@@ -41,7 +43,13 @@ impl RefCountedVirtual for Genome {
     }
 }
 
+#[godot_api]
 impl Genome {
+    #[func]
+    pub fn fitness(&self) -> f64 {
+        self.fitness.unwrap_or(f64::NEG_INFINITY)
+    }
+
     pub fn new(inputs: u32, outputs: u32) -> Self {
         let mut node_genes = vec![];
 

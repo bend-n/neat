@@ -10,13 +10,21 @@ use distance::GenomicDistanceCache;
 
 mod distance;
 
+#[derive(GodotClass)]
+#[class(base=RefCounted)]
 pub struct SpeciesSet {
     configuration: Gd<Configuration>,
     // last_index: Option<usize>,
     species: SpeciesMap,
 }
 
+#[godot_api]
 impl SpeciesSet {
+    #[func]
+    fn get_species(&self) -> Dictionary {
+        self.species.d()
+    }
+
     pub fn new(configuration: Gd<Configuration>) -> Self {
         SpeciesSet {
             configuration,

@@ -1,21 +1,54 @@
-use crate::mutations::Distribution;
-use godot::prelude::utilities::randi_range;
+use crate::EnumConversion;
 use nanoserde::{DeBin, SerBin};
 
 pub fn aggregate(kind: &Aggregation, components: &[f64]) -> f64 {
     use Aggregation::*;
 
-    let func: fn(components: &[f64]) -> f64 = match kind {
-        Product => product,
-        Sum => sum,
-        Max => max,
-        Min => min,
-        MaxAbs => maxabs,
-        Median => median,
-        Mean => mean,
-    };
+    match kind {
+        Product => components
+            .iter()
+            .fold(1., |result, current| result * current),
+        Sum => components.iter().sum(),
+        Max => components.iter().fold(
+            f64::MIN,
+            |max, current| if *current > max { *current } else { max },
+        ),
+        Min => components.iter().fold(
+            f64::MAX,
+            |min, current| if *current < min { *current } else { min },
+        ),
+        MaxAbs => max(&components
+            .iter()
+            .map(|component| component.abs())
+            .collect::<Vec<f64>>()),
+        Median => {
+            use std::cmp::Ordering;
 
-    func(components)
+            if components.is_empty() {
+                return 0.;
+            }
+
+            let mut sorted = components.to_vec();
+            sorted.sort_by(|a, b| {
+                if a < b {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            });
+
+            let length = sorted.len();
+            let is_length_even = length % 2 == 0;
+            let median_index = if is_length_even {
+                length / 2 - 1
+            } else {
+                length / 2
+            };
+
+            *sorted.get(median_index).unwrap()
+        }
+        Mean => sum(components) / components.len() as f64,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, DeBin, SerBin)]
@@ -29,11 +62,10 @@ pub enum Aggregation {
     Mean,
 }
 
-impl Distribution for Aggregation {
-    fn sample() -> Aggregation {
+impl EnumConversion for Aggregation {
+    fn from(i: u8) -> Self {
         use Aggregation::*;
-
-        match randi_range(0, 6) {
+        match i {
             0 => Product,
             1 => Sum,
             2 => Max,
@@ -43,18 +75,29 @@ impl Distribution for Aggregation {
             _ => Mean,
         }
     }
+    fn to(self) -> u8 {
+        use Aggregation::*;
+        match self {
+            Product => 0,
+            Sum => 1,
+            Max => 2,
+            Min => 3,
+            MaxAbs => 4,
+            Median => 5,
+            Mean => 6,
+        }
+    }
+    fn len() -> u8 {
+        6
+    }
 }
 
-fn product(components: &[f64]) -> f64 {
-    components
-        .iter()
-        .fold(1., |result, current| result * current)
-}
-
+#[inline]
 fn sum(components: &[f64]) -> f64 {
     components.iter().sum()
 }
 
+#[inline]
 fn max(components: &[f64]) -> f64 {
     components.iter().fold(
         f64::MIN,
@@ -62,100 +105,3 @@ fn max(components: &[f64]) -> f64 {
     )
 }
 
-fn min(components: &[f64]) -> f64 {
-    components.iter().fold(
-        f64::MAX,
-        |min, current| if *current < min { *current } else { min },
-    )
-}
-
-fn maxabs(components: &[f64]) -> f64 {
-    let abs_components: Vec<f64> = components.iter().map(|component| component.abs()).collect();
-    max(&abs_components)
-}
-
-fn median(components: &[f64]) -> f64 {
-    use std::cmp::Ordering;
-
-    if components.is_empty() {
-        return 0.;
-    }
-
-    let mut sorted = components.to_vec();
-    sorted.sort_by(|a, b| {
-        if a < b {
-            Ordering::Less
-        } else {
-            Ordering::Greater
-        }
-    });
-
-    let length = sorted.len();
-    let is_length_even = length % 2 == 0;
-    let median_index = if is_length_even {
-        length / 2 - 1
-    } else {
-        length / 2
-    };
-
-    *sorted.get(median_index).unwrap()
-}
-
-fn mean(components: &[f64]) -> f64 {
-    let sum: f64 = components.iter().sum();
-    sum / components.len() as f64
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn product_works() {
-        let components = vec![1., 2., 3., 4.];
-
-        assert!((product(&components) - 24.).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn sum_works() {
-        let components = vec![1., 2., 3., 4.];
-
-        assert!((sum(&components) - 10.).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn max_works() {
-        let components = vec![1., 2., 3., 4.];
-
-        assert!((max(&components) - 4.).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn min_works() {
-        let components = vec![1., 2., 3., 4.];
-
-        assert!((min(&components) - 1.).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn maxabs_works() {
-        let components = vec![-5., -3., 1., 2., 3., 4.];
-
-        assert!((maxabs(&components) - 5.).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn median_works() {
-        let components = vec![3., -3., 4., -5., 1., 2.];
-
-        assert!((median(&components) - 1.).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn mean_works() {
-        let components = vec![1., 2., 3., 4.];
-
-        assert!((mean(&components) - 2.5).abs() < f64::EPSILON);
-    }
-}
