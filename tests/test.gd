@@ -1,6 +1,10 @@
 extends Node
+class_name Test
+
+func t(n: NEAT) -> void: pass
 
 func test(conf: Dictionary, inputs: int, outputs: int, fitness: Callable, try: PackedFloat64Array, nam: String, working: PackedByteArray):
+	print("start test %s" % nam)
 	var neat := NEAT.new()
 	neat.inputs = inputs
 	neat.outputs = outputs
@@ -20,18 +24,16 @@ func test(conf: Dictionary, inputs: int, outputs: int, fitness: Callable, try: P
 	var test_res: PackedFloat64Array = res.network.forward_pass(try) if res else PackedFloat64Array()
 	var expected
 	if working:
-		var wnet := Network.new()
-		wnet.from_bytes(working)
-		expected = wnet.forward_pass(try)
-	print_rich("test %s: %s
+		expected = Network.from_bytes(working).forward_pass(try)
+	print_rich("test %s
 	sent %s, got %s
 	expected: %s
 	network: %s
-	" % [nam, "[color=cb3a37]failed[/color]" if not (expected == test_res) else "[color=#36be4e]passed[/color]",  test, test_res, expected, res.network.to_bytes().hex_encode() if res else "null"])
+	" % ["[color=cb3a37]failed[/color]" if not (expected == test_res) else "[color=#36be4e]passed[/color]",  test, test_res, expected, res.network.to_bytes().hex_encode() if res else "null"])
 
 
 func _ready() -> void:
-	seed(0)
+	seed(0) # note: seed 799 has bug with 5 pop and 10 gen
 	test(
 		{population_size=150, max_generations=100, mutation_rate=0.75, fitness_goal=0.9099, node_cost=0.01,connection_cost=0.01,compatability_threshold=3.0},
 		2,

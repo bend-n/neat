@@ -95,3 +95,8 @@ impl<K, V> From<Dictionary> for Map<K, V> {
         Self(value, PhantomData)
     }
 }
+impl<K, V> Share for Map<K, V> {
+    fn share(&self) -> Self {
+        Self(self.0.share(), PhantomData)
+    }
+}

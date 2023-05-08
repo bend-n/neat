@@ -69,16 +69,12 @@ impl Network {
     }
 
     #[func]
-    // until https://github.com/godot-rust/gdext/pull/252 is merged i cant make a deserialize() function
-    pub fn from_bytes(&mut self, bytes: PackedByteArray) -> i32 {
+    pub fn from_bytes(bytes: PackedByteArray) -> Variant {
         match Self::deserialize_bin(&bytes.to_vec()) {
-            Ok(new) => {
-                *self = new;
-                1
-            }
+            Ok(new) => Gd::new(new).to_variant(),
             Err(e) => {
                 godot_error!("deserializing failed: {e:#?}");
-                -1
+                Variant::nil()
             }
         }
     }
@@ -131,7 +127,7 @@ impl Network {
             .filter(|n| matches!(n.kind, NodeKind::Output))
             .map(|n| n.value.unwrap())
             .for_each(|f| result.push(f));
-        result
+        result // note that result can be f32::NAN
     }
 
     #[func]

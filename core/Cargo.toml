@@ -1,7 +1,7 @@
 [package]
 name = "neat-core"
 version = "0.1.0"
-authors = ["Stjepan Golemac <stjepan@tray.io>"]
+authors = ["Stjepan Golemac <stjepan@tray.io>", "bendn <bend.n@outlook.com>"]
 edition = "2018"
 
 [dependencies]

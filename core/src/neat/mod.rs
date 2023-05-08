@@ -152,17 +152,10 @@ impl NEAT {
                         })
                         .collect();
 
-                    member_ids_and_fitnesses.sort_by(|a, b| {
+                    #[rustfmt::skip]
+                    member_ids_and_fitnesses.sort_by(|(_, a), (_, b)| {
                         use std::cmp::Ordering::*;
-
-                        let fitness_a = a.1;
-                        let fitness_b = b.1;
-
-                        if fitness_a > fitness_b {
-                            Less
-                        } else {
-                            Greater
-                        }
+                        if a > b { Less } else { Greater }
                     });
 
                     // Pick survivors
